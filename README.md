@@ -15,7 +15,7 @@ https://www.docker.com/docker-mac
 
 ```
 chmod +x run
-# docker run -it --rm -v /Users/junki.kikuchi/Documents/Projects/poodr/:/app ruby:2.4
+# docker run -it --rm -v $(pwd):/app ruby:2.4
 ./run
 ```
 
@@ -32,3 +32,5 @@ irb(main):001:0> require '/app/chapter_2'
 irb(main):002:0> A::Gear.new(51, 11).ratio
 => 4.636363636363637
 ```
+
+# Chapter
