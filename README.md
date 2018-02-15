@@ -226,4 +226,77 @@ Gearは2つ以上の責任を持っている。しかし、これからすべき
 
 しかし、そのコードのパターンを踏襲したコードが将来作られる可能性には注意しよう。
 
-## 変更を歓迎する
+## 変更を歓迎するコードにするアイデア
+
+### Dry: Don't Repeat Yourself
+
+どんな変更であっても、1カ所のコードを変更するだけでよいようにする。
+
+### インスタンス変数を振る舞い化する
+
+インスタンス変数を直接参照してはいけない。定義されているクラスからでさえも隠蔽すべき。
+
+このようなコードは破滅を生む。
+
+```ruby
+module C
+  class Gear
+    def initialize(chainring, cog)
+      @chainring = chainring
+      @cog       = cog
+    end
+    
+    def ratio
+      @chainring / @cog.to_f # <-- 破滅への道
+    end
+  end
+end
+```
+
+このように隠蔽すべきである。
+
+```ruby
+module D
+  class Gear
+    attr_reader :chainring, :cog # <------
+    def initialize(chainring, cog)
+      @chainring = chainring
+      @cog       = cog
+    end
+
+    def ratio
+      chainring / cog.to_f
+    end
+  end
+end
+```
+
+これにより、cogやchainringをデータから振る舞いを示すメソッドに変更出来た。
+
+なぜこうする必要があるのか？
+
+例えば、@cogインスタンス変数が10カ所で参照されていた場合、突然@cogの中身を変更することは難しくなる。
+
+しかし、@cogがメソッドで包まれていれば、cogが何を意味するのかを簡単に変更できる。
+
+```ruby
+def cog
+  @cog * unanticipated_adjustment_factor
+end
+```
+
+```ruby
+def cog
+  @cog * (foo? ? bar_adjustment : baz_adjustment)
+end
+```
+
+このような場合、インスタンス変数の参照すべてに同じ修正を適用する必要はなくなる。
+
+ただし副作用が2つある。
+
+- 変数がほかのオブジェクトに公開されてしまうこと
+  - こちらはプライベートメソッドとして定義することで防止できる。
+- データとオブジェクトの見分けがつかなくなってしまうこと
+  - 全てオブジェクトとして区別してもらえたほうがよい。
+    - なぜなら、データは未知の振る舞いをすることがあるから（実例は無し）。
