@@ -232,7 +232,7 @@ Gearは2つ以上の責任を持っている。しかし、これからすべき
 
 どんな変更であっても、1カ所のコードを変更するだけでよいようにする。
 
-### インスタンス変数を振る舞い化する
+### インスタンス変数を振る舞い化し隠蔽する
 
 インスタンス変数を直接参照してはいけない。定義されているクラスからでさえも隠蔽すべき。
 
@@ -297,6 +297,96 @@ end
 
 - 変数がほかのオブジェクトに公開されてしまうこと
   - こちらはプライベートメソッドとして定義することで防止できる。
+
+```ruby
+module E
+  class Gear
+    def initialize(chainring, cog)
+      @chainring = chainring
+      @cog       = cog
+    end
+
+    def ratio
+      chainring / cog.to_f
+    end
+    
+    private
+    
+    attr_reader :chainring, :cog # <------
+  end
+end
+```
+
 - データとオブジェクトの見分けがつかなくなってしまうこと
   - 全てオブジェクトとして区別してもらえたほうがよい。
     - なぜなら、データは未知の振る舞いをすることがあるから（実例は無し）。
+
+### データ構造を隠蔽する
+
+複雑なデータ構造への依存がよくないという例。
+```ruby
+module F
+  class ObscuringReferences
+    attr_writer :data
+    def initialize(data)
+      @data = data
+    end
+
+    def diameters
+      # 0はリム、1はタイヤ
+      data.collect do |cell|
+        cell[0] + (cell[1] * 2)
+      end
+      # ... インデックスで配列の値を参照するメソッドが他にもたくさん
+    end
+  end
+end
+```
+
+インスタンス変数dataには2次元配列が必要になる。
+```ruby
+# リムとタイヤのサイズの2次元配列
+@data = [[622, 20], [622, 23], [559, 30], [559, 40]]
+```
+
+dataメソッドを使うdiametersメソッドは、リムとタイヤサイズをどのように配列へ格納しなくてはならないのかを知る必要がある。
+
+また、diametersメソッドはdataメソッドの配列構造に依存しており、配列構造に変更があると、コードの変更が必要になる。
+
+このようなデータ構造の知識は複製されるべきでなく、1カ所で把握されるべきだ。
+
+構造が複製された後に変更されてしまうと、各所にバグが混入し、さらにこの種類のバグはとてもデバッグがしにくい。
+
+Rubyでは、Structクラスを使ってデータ構造を隠蔽できる。
+
+次のクラスは、ObscuringReferencesと同じインタフェースを持つが、diametersメソッドは配列の構造への関心が無くなっている。
+
+```ruby
+class RevealingReferences
+  attr_reader :wheels
+  def initialize(data)
+    @wheels = wheelify(data)
+  end
+
+  def diameters
+    wheels.collect do |wheel|
+      wheel.rim + (wheel.tire * 2)
+    end
+  end
+  # ... これでだれでもwheelにrim/tireを送れる
+
+  Wheel = Struct.new(:rim, :tire)
+
+  def wheelify(data)
+    data.collect do |cell|
+      Wheel.new(cell[0], cell[1])
+    end
+  end
+end
+```
+
+その代わり、配列の構造の知識はwheelifyメソッド内に隔離された。このメソッドは、配列を構造体に変換している。
+
+これにより、データ構造の変化時に変更する必要のある部分がひとつになり、このクラスはより変更を受け入れやすいものになった。
+
+入力をWheelを集めた配列にするなどすればさらに簡単になる。もしも入力をコントロール出来る場合はそうしたほうがよい。
