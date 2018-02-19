@@ -362,24 +362,26 @@ Rubyでは、Structクラスを使ってデータ構造を隠蔽できる。
 次のクラスは、ObscuringReferencesと同じインタフェースを持つが、diametersメソッドは配列の構造への関心が無くなっている。
 
 ```ruby
-class RevealingReferences
-  attr_reader :wheels
-  def initialize(data)
-    @wheels = wheelify(data)
-  end
-
-  def diameters
-    wheels.collect do |wheel|
-      wheel.rim + (wheel.tire * 2)
+module G
+  class RevealingReferences
+    attr_reader :wheels
+    def initialize(data)
+      @wheels = wheelify(data)
     end
-  end
-  # ... これでだれでもwheelにrim/tireを送れる
 
-  Wheel = Struct.new(:rim, :tire)
+    def diameters
+      wheels.collect do |wheel|
+        wheel.rim + (wheel.tire * 2)
+      end
+    end
+    # ... これでだれでもwheelにrim/tireを送れる
 
-  def wheelify(data)
-    data.collect do |cell|
-      Wheel.new(cell[0], cell[1])
+    Wheel = Struct.new(:rim, :tire)
+
+    def wheelify(data)
+      data.collect do |cell|
+        Wheel.new(cell[0], cell[1])
+      end
     end
   end
 end
@@ -453,7 +455,7 @@ def diameter
 end
 ```
 
-このリファクタリングによって、Gearクラスが車輪の直径を計算していることが判明した。
+このリファクタリングによって、Gearクラスが車輪の直径を計算していることが判明した。これはGearクラスの責任としてはおかしい。
 
 メソッドを単一責任にしていくことで、クラスの責務を明らかにすることができた。
 
@@ -467,3 +469,40 @@ end
   - メソッドが小さいので、再利用がしやすくなり、他のプログラマもそのような書き方をしていくようになる
 - ほかのクラスへ移動しやすくなる
   - 小さなメソッドは簡単に動かせる
+
+### クラス内の異なる責任を隔離する
+
+クラスに異なる責任があるとき、単にその責任を他のクラスに切り分ける以外の場合について考える。
+
+切り分けることはそれ単体で考えると容易にみえるが、新しいクラスは依存など何らかの制約により作れない場合もある。
+
+```ruby
+module H
+  class Gear
+    attr_reader :chainring, :cog, :wheel
+    def initialize(chainring, cog, rim, tire)
+      @chainring = chainring
+      @cog       = cog
+      @wheel     = Wheel.new(rim, tire)
+    end
+
+    def ratio
+      chainring / cog.to_f
+    end
+
+    def gear_inches
+      ratio * wheel.diameter
+    end
+
+    Wheel = Struct.new(:rim, :tire) do
+      def diameter
+        rim + (tire * 2)
+      end
+    end
+  end
+end
+```
+
+例えばこうすることで、自身の直径を計算できるWheelを定義出来る。
+
+また、このWheelは、Gear内に埋め込まれており、Gearのコンテストのみにおいて存在することを読んだ人に伝えられる。

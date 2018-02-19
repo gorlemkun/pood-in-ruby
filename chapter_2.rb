@@ -93,24 +93,51 @@ module F
   end
 end
 
-class RevealingReferences
-  attr_reader :wheels
-  def initialize(data)
-    @wheels = wheelify(data)
-  end
+module G
+  class RevealingReferences
+    attr_reader :wheels
+    def initialize(data)
+      @wheels = wheelify(data)
+    end
 
-  def diameters
-    wheels.collect do |wheel|
-      wheel.rim + (wheel.tire * 2)
+    def diameters
+      wheels.collect do |wheel|
+        wheel.rim + (wheel.tire * 2)
+      end
+    end
+    # ... これでだれでもwheelにrim/tireを送れる
+
+    Wheel = Struct.new(:rim, :tire)
+
+    def wheelify(data)
+      data.collect do |cell|
+        Wheel.new(cell[0], cell[1])
+      end
     end
   end
-  # ... これでだれでもwheelにrim/tireを送れる
+end
 
-  Wheel = Struct.new(:rim, :tire)
+module H
+  class Gear
+    attr_reader :chainring, :cog, :wheel
+    def initialize(chainring, cog, rim, tire)
+      @chainring = chainring
+      @cog       = cog
+      @wheel     = Wheel.new(rim, tire)
+    end
 
-  def wheelify(data)
-    data.collect do |cell|
-      Wheel.new(cell[0], cell[1])
+    def ratio
+      chainring / cog.to_f
+    end
+
+    def gear_inches
+      ratio * wheel.diameter
+    end
+
+    Wheel = Struct.new(:rim, :tire) do
+      def diameter
+        rim + (tire * 2)
+      end
     end
   end
 end
